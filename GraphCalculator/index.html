@@ -1,0 +1,283 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title></title>
+    <link href="bower_components/mathquill-0.9.4/mathquill.css" rel="stylesheet" />
+   
+</head>
+    <body>
+        <div>
+            <p>Math textbox with initial LaTeX: <span id="editable-math" class="mathquill-editable">\frac{d}{dx}\sqrt{x}=</span></p>
+            <p>Latex source: <textarea id="latex-source" style="width:80%;vertical-align:top"></textarea></p>
+
+        </div>
+
+
+        <div>
+            <p>Latex Converted:</p>
+            <textarea id="disp"></textarea>
+            <button id="chkText">chkText</button>
+        </div>
+
+        <div>
+            <p>Expression Taken on left side:</p>
+            <textarea id="dispEquation"></textarea>
+            <button id="chk">convert</button>
+        </div>
+
+
+        <div>
+            <p>Expression reduced by putting x values:</p>
+            <textarea id="dispReducedEquation"></textarea>
+            <button id="reduceExp">convert</button>
+        </div>
+
+        <div>
+            <p>Js Expression:</p>
+            <textarea id="jsEquation"></textarea>
+
+        </div>
+
+        <div>
+            <button id="drawG">Draw graph</button>
+        </div>
+        
+        <!--Script Tags-->
+        <script src="bower_components/jquery/dist/jquery.js"></script>
+        <script src="bower_components/d3/d3.js"></script>
+        <script src="bower_components/mathquill-0.9.4/mathquill.js"></script>
+        <script src="bower_components/nerdamer/nerdamer.core.js"></script>
+        <script src="bower_components/nerdamer/Algebra.js"></script>
+        <script src="bower_components/nerdamer/Calculus.js"></script>
+        <script src="bower_components/nerdamer/Solve.js"></script>
+        
+        
+        <script type="text/javascript">
+            var latexMath = $('#editable-math'),
+                latexSource = $('#latex-source');
+            var globalLatex = "";
+            var globalEq = "";
+            var equation = "";
+            var graphSetting = {
+                xMax: 5,
+                xMin: -5,
+                yMax: 5,
+                yMin: -5
+            }
+            var svgCanvas;
+            var svgHeight;
+            var svgWidth;
+            var heightScale;
+            var widthScale;
+            var xAxis;
+            var yAxis;
+
+            var plotArr = [{}];
+            $(function () {
+
+
+                svgHeight = 830;
+                svgWidth = 800;
+                widthScale = d3.scale.linear().domain([-10, 10]).range([0, svgWidth]);
+                heightScale = d3.scale.linear().domain([-10, 10]).range([svgHeight, 0]);
+                xAxis = d3.svg.axis().scale(widthScale).ticks(6);
+                yAxis = d3.svg.axis().scale(heightScale).ticks(12).orient("left");
+                svgCanvas = d3.select("body").append("svg").attr("height", svgHeight).attr("width", svgWidth).append("g").attr("transform", "translate(20, 0)");
+                svgCanvas.append("g").attr("transform", "translate(0, 400)").call(xAxis);
+                svgCanvas.append("g").attr("transform", "translate(400,0)").call(yAxis);
+
+                latexMath.bind('keydown keypress', function () {
+                    setTimeout(function () {
+                        var latex = latexMath.mathquill('latex');
+                        latexSource.val(latex);
+                        globalLatex = latex;
+                    });
+                }).keydown().focus();
+
+                latexSource.bind('keydown keypress', function () {
+                    var oldtext = latexSource.val();
+                    setTimeout(function () {
+                        var newtext = latexSource.val();
+                        if (newtext !== oldtext) {
+                            latexMath.mathquill('latex', newtext);
+                        }
+                    });
+                });
+
+                if (location.hash && location.hash.length > 1)
+                    latexMath.mathquill('latex', decodeURIComponent(location.hash.slice(1))).focus();
+            });
+
+
+            $("#chkText").click(function () {
+
+
+
+                $("#disp").val(convertExp(globalLatex));
+
+                globalEq = convertExp(globalLatex);
+
+                //  var cal = new Calc(globalLatex);
+                ////  $("#disp").val(cal.latexToInfix(globalLatex));
+                //  //console.log($('.mathquill-embedded-latex').mathquill('revert'));
+            });
+
+            $("#chk").click(function () {
+
+                globalEq = convertExp(globalLatex);
+
+                var spiltArr = [];
+
+                if (globalEq.indexOf("=") > -1) {
+                    spiltArr = globalEq.split("=");
+                    equation = spiltArr[0] + "-(" + spiltArr[1] + ")";
+                }
+                $("#dispEquation").val(equation);
+            });
+
+            $("#reduceExp").click(function () {
+
+                var reducedEquation = reduceExpression(equation);
+                $("#dispReducedEquation").val(reducedEquation);
+            });
+
+            function convertExp(exp) {
+                var infix = exp;
+                var rep = infix
+                    .replace(/}{/g, ")/(")
+                    .replace(/\\frac{/g, "(")
+                    .replace(/\^{/g, "^(")
+                    .replace(/\}/g, ")")
+                    .replace(/\\left\(/g, "(")
+                    .replace(/\\right\)/g, ")")
+                    .replace(/\\cdot\s/g, "*");
+                //.replace(/([A-Za-z])([A-Za-z])/g, "($1)*($2)")
+                //.replace(/([0-9])([A-Za-z])/g, "($1)*($2)");
+                //  .replace(/\+/g, "+(")
+                //  .replace(/[A-Z a-z]/g, "($&)");
+                //.replace(/\[-]\(/g, "(");
+
+                return rep;
+            }
+
+            function reduceExpression(equ) {
+                //   var exp = Parser.parse(equ).simplify({ y: 4 });
+                //$("#jsEquation").val(exp.toString(exp));
+                var val;
+                var parse;
+                var sol;
+                var arr = [];
+                var arr1 = [];
+                var totalArr = [];
+                var obj = {};
+                for (var i = -2; i < 2; i = i + 0.1) {
+                    val = nerdamer(equ, { x: i });
+                    parse = val + "=0";
+
+                    sol = nerdamer.solveEquations(parse, 'y');
+
+                    console.log(sol.toString());
+                    if (sol.length < 2) {
+                        obj = { x: i, y: parseFloat(sol.toString()) };
+
+                        arr.push(obj);
+                    } else {
+                        obj = { x: i, y: parseFloat(sol[0].toString()) };
+
+                        if (parseFloat(sol[0].toString()) > 0) {
+                            arr1.push(obj);
+                        } else {
+                            arr.push(obj);
+                        }
+                        //  arr.push(obj);
+
+                        obj = { x: i, y: parseFloat(sol[1].toString()) };
+
+
+                        if (parseFloat(sol[1].toString()) > 0) {
+                            arr1.push(obj);
+                        } else {
+                            arr.push(obj);
+                        }
+
+                    }
+                }
+
+                console.log(arr);
+                //var sas=nerdamer.expressions();
+                //  return val ;
+                //return sol.toString();
+
+                //arr.sort(function (a, b) { return   b.y-a.y ; });
+
+                totalArr = arr1.concat(arr);
+                plotArr = totalArr;
+
+                return JSON.stringify(totalArr);
+            }
+
+            //function evaluate(exp) {
+            //    return Math.eval()
+            //}
+
+
+            //Plot graph
+            function PlotGraph() { }
+
+
+            $("#drawG").on('click', function () {
+                //var val = $('#equation').val();
+                //addEquation(val);
+                //redraw(val);
+                ////equations[0].render();
+                ////ctx.drawImage(equations[0].image, 0, 0, gp.width, gp.height);
+                //var arrObj = [{x:0,y:0}];
+                //for (var i = 0; i < pointArX.length; i++) {
+
+                //    var obj = { x:pointArX[i],y:pointArY[i]};
+
+                //    arrObj.push(obj);
+                //}
+
+                //console.log(arrObj);
+                //arr = arrObj;
+
+
+
+                //console.log(pointArX);
+                //console.log(pointArY);
+
+                //var lineData = arr;
+                svgCanvas.select(".gLine").remove();
+                var lineData = plotArr;
+
+
+                var lineFunc = d3.svg.line().x(function (d) {
+                    return widthScale(d.x);
+                }).y(function (d) {
+                    return heightScale(d.y);
+                }).interpolate('cardinal');
+                var pi = String.fromCharCode(960);
+
+                for (var m = 0; m < lineData.length; m++) {
+
+                    var circleElement = svgCanvas.append("circle")
+                        .attr("stroke", "blue")
+                        .attr("fill", "blue")
+                        .attr("r", 2)
+                        .attr("cx", widthScale(lineData[m].x))
+                        .attr("cy", heightScale(lineData[m].y));
+
+
+                }
+
+
+
+                svgCanvas.append('svg:path').attr("class", "gLine").attr('d', lineFunc(lineData)).attr('stroke', 'blue').attr('stroke-width', 2).attr('fill', 'none');
+                //svgCanvas.append('svg:circle').attr("cx", lineData)
+            });
+
+        </script>
+
+    </body>
+</html>
