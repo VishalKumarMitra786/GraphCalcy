@@ -13,7 +13,7 @@
         </div>
 
 
-        <div>
+        <!--<div>
             <p>Latex Converted:</p>
             <textarea id="disp"></textarea>
             <button id="chkText">chkText</button>
@@ -36,10 +36,12 @@
             <p>Js Expression:</p>
             <textarea id="jsEquation"></textarea>
 
-        </div>
+        </div>-->
 
         <div>
-            <button id="drawG">Draw graph</button>
+            <!--<button id="drawG">Draw graph</button>
+            <br/>-->
+            <button id="drawGraph">Draw</button>
         </div>
         
         <!--Script Tags-->
@@ -50,6 +52,7 @@
         <script src="bower_components/nerdamer/Algebra.js"></script>
         <script src="bower_components/nerdamer/Calculus.js"></script>
         <script src="bower_components/nerdamer/Solve.js"></script>
+        <script src="bower_components/mathjs/dist/math.js"></script>
         
         
         <script type="text/javascript">
@@ -58,6 +61,7 @@
             var globalLatex = "";
             var globalEq = "";
             var equation = "";
+            var constE = 2.718;
             var graphSetting = {
                 xMax: 5,
                 xMin: -5,
@@ -71,18 +75,17 @@
             var widthScale;
             var xAxis;
             var yAxis;
-
+            var lhsEquation = { type: 0, equation: "",equationType:"" };
             var plotArr = [{}];
             $(function () {
-
-
-                svgHeight = 830;
+                svgHeight = 800;
                 svgWidth = 800;
                 widthScale = d3.scale.linear().domain([-10, 10]).range([0, svgWidth]);
                 heightScale = d3.scale.linear().domain([-10, 10]).range([svgHeight, 0]);
-                xAxis = d3.svg.axis().scale(widthScale).ticks(6);
+                xAxis = d3.svg.axis().scale(widthScale).ticks(12);
                 yAxis = d3.svg.axis().scale(heightScale).ticks(12).orient("left");
-                svgCanvas = d3.select("body").append("svg").attr("height", svgHeight).attr("width", svgWidth).append("g").attr("transform", "translate(20, 0)");
+                svgCanvas = d3.select("body").append("svg").attr("height", svgHeight).attr("width", svgWidth).append("g");
+                    //.attr("transform", "translate(20, 0)");
                 svgCanvas.append("g").attr("transform", "translate(0, 400)").call(xAxis);
                 svgCanvas.append("g").attr("transform", "translate(400,0)").call(yAxis);
 
@@ -104,42 +107,73 @@
                     });
                 });
 
-                if (location.hash && location.hash.length > 1)
-                    latexMath.mathquill('latex', decodeURIComponent(location.hash.slice(1))).focus();
             });
 
 
-            $("#chkText").click(function () {
+            ////check equation type
+            //function checkEquationType(eq) {
+            //    if(eq.indexOf(""))
+            //}
 
+            //Plot graph
+            function plotGraph() {
+                var latexExpression = globalLatex;
+                var parsedEquation = convertExp(latexExpression);
+                var lhsEquation = lhsExpression(parsedEquation);
+                var plotValuesArr = plotValues(lhsEquation);
+                return (plotValuesArr);
+            }
 
-
-                $("#disp").val(convertExp(globalLatex));
-
-                globalEq = convertExp(globalLatex);
-
-                //  var cal = new Calc(globalLatex);
-                ////  $("#disp").val(cal.latexToInfix(globalLatex));
-                //  //console.log($('.mathquill-embedded-latex').mathquill('revert'));
-            });
-
-            $("#chk").click(function () {
-
-                globalEq = convertExp(globalLatex);
-
-                var spiltArr = [];
-
-                if (globalEq.indexOf("=") > -1) {
-                    spiltArr = globalEq.split("=");
-                    equation = spiltArr[0] + "-(" + spiltArr[1] + ")";
+         
+            function lhsExpression(parsedEquation) {
+                var spiltExpressionArr = [];
+               
+                //checking constant e
+                if (parsedEquation.indexOf("e") > -1) {
+                    parsedEquation=parsedEquation.replace("e", constE);
                 }
-                $("#dispEquation").val(equation);
-            });
 
-            $("#reduceExp").click(function () {
 
-                var reducedEquation = reduceExpression(equation);
-                $("#dispReducedEquation").val(reducedEquation);
-            });
+                if (parsedEquation.indexOf("=") > -1) {
+                    spiltExpressionArr = parsedEquation.split("=");
+                    var lhs = spiltExpressionArr[0];
+                    var rhs = spiltExpressionArr[1];
+                    lhsEquation.equation = lhs + "-(" + rhs + ")";
+
+                    if (lhsEquation.equation.indexOf("x") === -1) {
+                        lhsEquation.type = 1;
+                        lhsEquation.equation = "x=" + lhsEquation.equation;
+                        lhsEquation = lhsExpression(lhsEquation.equation);
+                    } else if (lhsEquation.equation.indexOf("y") === -1) {
+                        lhsEquation.type = 2;
+                        lhsEquation.equation = "y=" + lhsEquation.equation;
+                        lhsEquation = lhsExpression(lhsEquation.equation);
+                    }
+
+                } else {
+                    //Evalutation of e
+                    if (parsedEquation.indexOf("x") === -1 && parsedEquation.indexOf("y") === -1) {
+                        lhsEquation.type = 3;
+                        lhsEquation.equation =math.eval(parsedEquation);
+                       // lhsEquation = lhsExpression(lhsEquation.equation);
+                    } else {
+                        if (parsedEquation.indexOf("x") === -1) {
+                            lhsEquation.type = 1;
+                            lhsEquation.equation = "x=" + parsedEquation;
+                            lhsEquation = lhsExpression(lhsEquation.equation);
+                        } else if (parsedEquation.indexOf("y") === -1) {
+                            lhsEquation.type = 2;
+                            lhsEquation.equation = "y=" + parsedEquation;
+                            lhsEquation = lhsExpression(lhsEquation.equation);
+                        }
+                    }
+                }
+                return lhsEquation;
+            }
+
+            //function settingEquationType(inTermsEqu) {
+            //    if(inTermsEqu.contains(""))
+            //}
 
             function convertExp(exp) {
                 var infix = exp;
@@ -150,7 +184,7 @@
                     .replace(/\}/g, ")")
                     .replace(/\\left\(/g, "(")
                     .replace(/\\right\)/g, ")")
-                    .replace(/\\cdot\s/g, "*");
+                    .replace(/\\cdot/g, "*");
                 //.replace(/([A-Za-z])([A-Za-z])/g, "($1)*($2)")
                 //.replace(/([0-9])([A-Za-z])/g, "($1)*($2)");
                 //  .replace(/\+/g, "+(")
@@ -160,9 +194,7 @@
                 return rep;
             }
 
-            function reduceExpression(equ) {
-                //   var exp = Parser.parse(equ).simplify({ y: 4 });
-                //$("#jsEquation").val(exp.toString(exp));
+            function plotValues(plotEquation) {
                 var val;
                 var parse;
                 var sol;
@@ -170,113 +202,89 @@
                 var arr1 = [];
                 var totalArr = [];
                 var obj = {};
-                for (var i = -2; i < 2; i = i + 0.1) {
-                    val = nerdamer(equ, { x: i });
-                    parse = val + "=0";
+                var eq;
+                for (var i = -10 ; i < 10 ; i = i +0.1) {
 
-                    sol = nerdamer.solveEquations(parse, 'y');
-
-                    console.log(sol.toString());
-                    if (sol.length < 2) {
-                        obj = { x: i, y: parseFloat(sol.toString()) };
-
-                        arr.push(obj);
-                    } else {
-                        obj = { x: i, y: parseFloat(sol[0].toString()) };
-
-                        if (parseFloat(sol[0].toString()) > 0) {
-                            arr1.push(obj);
-                        } else {
+                    if (plotEquation.type === 2 || plotEquation.type === 0) {
+                        eq = plotEquation.equation;
+                        val = nerdamer(eq, { x: i.toFixed(2) });
+                        parse = val + "=0";
+                        sol = nerdamer.solveEquations(parse, 'y');
+                        if (sol.length < 2) {
+                            obj = { x: i, y: parseFloat(sol.toString()).toFixed(2) };
                             arr.push(obj);
-                        }
-                        //  arr.push(obj);
-
-                        obj = { x: i, y: parseFloat(sol[1].toString()) };
-
-
-                        if (parseFloat(sol[1].toString()) > 0) {
-                            arr1.push(obj);
                         } else {
-                            arr.push(obj);
-                        }
+                            obj = { x: i, y: parseFloat(sol[0].toString()).toFixed(2) };
 
+                            if (parseFloat(sol[0].toString()).toFixed(2) > 0) {
+                                arr1.push(obj);
+                            } else {
+                                arr.push(obj);
+                            }
+                            //  arr.push(obj);
+
+                            obj = { x: i, y: parseFloat(sol[1].toString()).toFixed(2) };
+
+
+                            if (parseFloat(sol[1].toString()).toFixed(2) > 0) {
+                                arr1.push(obj);
+                            } else {
+                                arr.push(obj);
+                            }
+                        }
+                    } else if (plotEquation.type === 1) {
+                        eq = plotEquation.equation;
+                        val = nerdamer(eq, { y: i.toFixed(2) });
+                        parse = val + "=0";
+                        sol = nerdamer.solveEquations(parse, 'x');
+                        if (sol.length < 2) {
+                            obj = { y: i, x: parseFloat(sol.toString()).toFixed(2) };
+                            arr.push(obj);
+                        } else {
+                            obj = { y: i, x: parseFloat(sol[0].toString()).toFixed(2) };
+
+                            if (parseFloat(sol[0].toString()).toFixed(2) > 0) {
+                                arr1.push(obj);
+                            } else {
+                                arr.push(obj);
+                            }
+                            //  arr.push(obj);
+
+                            obj = { y: i, x: parseFloat(sol[1].toString()).toFixed(2) };
+
+
+                            if (parseFloat(sol[1].toString()).toFixed(2) > 0) {
+                                arr1.push(obj);
+                            } else {
+                                arr.push(obj);
+                            }
+                        }
+                    } else if (plotEquation.type === 3) {
+                        eq = plotEquation.equation;
+                        obj = { x: i, y: y = parseFloat(plotEquation.equation) };
+                        arr1.push(obj);
                     }
+                 
                 }
-
-                console.log(arr);
-                //var sas=nerdamer.expressions();
-                //  return val ;
-                //return sol.toString();
-
-                //arr.sort(function (a, b) { return   b.y-a.y ; });
 
                 totalArr = arr1.concat(arr);
-                plotArr = totalArr;
 
-                return JSON.stringify(totalArr);
+                return totalArr;
             }
 
-            //function evaluate(exp) {
-            //    return Math.eval()
-            //}
 
-
-            //Plot graph
-            function PlotGraph() { }
-
-
-            $("#drawG").on('click', function () {
-                //var val = $('#equation').val();
-                //addEquation(val);
-                //redraw(val);
-                ////equations[0].render();
-                ////ctx.drawImage(equations[0].image, 0, 0, gp.width, gp.height);
-                //var arrObj = [{x:0,y:0}];
-                //for (var i = 0; i < pointArX.length; i++) {
-
-                //    var obj = { x:pointArX[i],y:pointArY[i]};
-
-                //    arrObj.push(obj);
-                //}
-
-                //console.log(arrObj);
-                //arr = arrObj;
-
-
-
-                //console.log(pointArX);
-                //console.log(pointArY);
-
-                //var lineData = arr;
-                svgCanvas.select(".gLine").remove();
-                var lineData = plotArr;
-
-
+            $("#drawGraph").on('click', function () {
+                svgCanvas.selectAll(".gLine").remove();
+                var lineData = plotGraph();
                 var lineFunc = d3.svg.line().x(function (d) {
-                    return widthScale(d.x);
+                    return widthScale(d.x).toFixed(3);
                 }).y(function (d) {
-                    return heightScale(d.y);
+                    return  heightScale(d.y);
                 }).interpolate('cardinal');
-                var pi = String.fromCharCode(960);
-
-                for (var m = 0; m < lineData.length; m++) {
-
-                    var circleElement = svgCanvas.append("circle")
-                        .attr("stroke", "blue")
-                        .attr("fill", "blue")
-                        .attr("r", 2)
-                        .attr("cx", widthScale(lineData[m].x))
-                        .attr("cy", heightScale(lineData[m].y));
-
-
-                }
-
-
 
                 svgCanvas.append('svg:path').attr("class", "gLine").attr('d', lineFunc(lineData)).attr('stroke', 'blue').attr('stroke-width', 2).attr('fill', 'none');
-                //svgCanvas.append('svg:circle').attr("cx", lineData)
             });
-
+        
         </script>
 
     </body>
