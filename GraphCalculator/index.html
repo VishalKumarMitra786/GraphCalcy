@@ -48,10 +48,10 @@
         <script src="bower_components/jquery/dist/jquery.js"></script>
         <script src="bower_components/d3/d3.js"></script>
         <script src="bower_components/mathquill-0.9.4/mathquill.js"></script>
-        <script src="bower_components/nerdamer/nerdamer.core.js"></script>
-        <script src="bower_components/nerdamer/Algebra.js"></script>
-        <script src="bower_components/nerdamer/Calculus.js"></script>
-        <script src="bower_components/nerdamer/Solve.js"></script>
+        <script src="bower_components/onerdamer/nerdamer.core.js"></script>
+        <script src="bower_components/onerdamer/Algebra.js"></script>
+        <script src="bower_components/onerdamer/Calculus.js"></script>
+        <script src="bower_components/onerdamer/Solve.js"></script>
         <script src="bower_components/mathjs/dist/math.js"></script>
         
         
@@ -77,6 +77,8 @@
             var yAxis;
             var lhsEquation = { type: 0, equation: "",equationType:"" };
             var plotArr = [{}];
+            var isDoublePath = false;
+            var isTrignometicEq = false;
             $(function () {
                 svgHeight = 800;
                 svgWidth = 800;
@@ -119,8 +121,11 @@
             function plotGraph() {
                 var latexExpression = globalLatex;
                 var parsedEquation = convertExp(latexExpression);
-                var lhsEquation = lhsExpression(parsedEquation);
-                var plotValuesArr = plotValues(lhsEquation);
+                
+                var plotValuesArr = plotValues(lhsExpression(parsedEquation));
+                //setting back the value to inital position after the gain of plots
+                lhsEquation = { type: 0, equation: "", equationType: "" };
+                isTrignometicEq = false;
                 return (plotValuesArr);
             }
 
@@ -133,6 +138,10 @@
                     parsedEquation=parsedEquation.replace("e", constE);
                 }
 
+                var pattern = /(cos|sin|tan|acos|asin|atan|log)/i;
+                if (parsedEquation.search(pattern) > -1) {
+                    isTrignometicEq = true;
+                }
 
                 if (parsedEquation.indexOf("=") > -1) {
                     spiltExpressionArr = parsedEquation.split("=");
@@ -140,14 +149,15 @@
                     var rhs = spiltExpressionArr[1];
                     lhsEquation.equation = lhs + "-(" + rhs + ")";
 
-                    if (lhsEquation.equation.indexOf("x") === -1) {
-                        lhsEquation.type = 1;
-                        lhsEquation.equation = "x=" + lhsEquation.equation;
-                        lhsEquation = lhsExpression(lhsEquation.equation);
-                    } else if (lhsEquation.equation.indexOf("y") === -1) {
-                        lhsEquation.type = 2;
-                        lhsEquation.equation = "y=" + lhsEquation.equation;
-                        lhsEquation = lhsExpression(lhsEquation.equation);
+                    if (lhsEquation.equation.indexOf("x") === -1) {//this for eq having no x like y-1=3
+                        lhsEquation.type = 5;
+                        //lhsEquation.equation = "x=" + lhsEquation.equation;
+                        //lhsEquation = lhsExpression(lhsEquation.equation);
+                    } else if (lhsEquation.equation.indexOf("y") === -1) {//this for eq having no y like x-1=3
+                        lhsEquation.type = 4;
+                        //lhsEquation.type = 2;
+                        //lhsEquation.equation = "y=" + lhsEquation.equation;
+                        //lhsEquation = lhsExpression(lhsEquation.equation);
                     }
 
                 } else {
@@ -165,6 +175,10 @@
                             lhsEquation.type = 2;
                             lhsEquation.equation = "y=" + parsedEquation;
                             lhsEquation = lhsExpression(lhsEquation.equation);
+                        } else {
+                            lhsEquation.type = 0;
+                            lhsEquation.equation = parsedEquation;
+                            //lhsEquation = lhsExpression(lhsEquation.equation);
                         }
                     }
                 }
@@ -201,46 +215,109 @@
                 var arr = [];
                 var arr1 = [];
                 var totalArr = [];
+                var doubleArr = [[]];
                 var obj = {};
-                var eq;
+                var eq="";
                 for (var i = -10 ; i < 10 ; i = i +0.1) {
 
                     if (plotEquation.type === 2 || plotEquation.type === 0) {
-                        eq = plotEquation.equation;
-                        val = nerdamer(eq, { x: i.toFixed(2) });
-                        parse = val + "=0";
+                        //eq = plotEquation.equation;
+                        //val = nerdamer(plotEquation.equation, { x:i });
+                        parse = nerdamer(plotEquation.equation, { x: i }).symbol.value + "=0";
+
+                        //removal of NaN i.e for 'e' exponential
+                        if (parse.indexOf("e") > -1) {
+                            //val = nerdamer(eq, { x: 0 });
+                           continue;
+                        }
+
                         sol = nerdamer.solveEquations(parse, 'y');
                         if (sol.length < 2) {
                             obj = { x: i, y: parseFloat(sol.toString()).toFixed(2) };
                             arr.push(obj);
                         } else {
-                            obj = { x: i, y: parseFloat(sol[0].toString()).toFixed(2) };
-
-                            if (parseFloat(sol[0].toString()).toFixed(2) > 0) {
+                            
+                            //for trignometric equation
+                            if (isTrignometicEq) {
+                                obj = { x: i, y: parseFloat(sol[0].toString()).toFixed(2) };
+                                arr1.push(obj);
+                                obj = { x: i, y: parseFloat(sol[1].toString()).toFixed(2) };
                                 arr1.push(obj);
                             } else {
-                                arr.push(obj);
-                            }
-                            //  arr.push(obj);
+                                obj = { x: i, y: parseFloat(sol[0].toString()).toFixed(2) };
+                                if (parseFloat(sol[0].toString()).toFixed(2) > 0) {
+                                    arr1.push(obj);
+                                } else {
+                                    arr.push(obj);
+                                }
+                                //  arr.push(obj);
 
-                            obj = { x: i, y: parseFloat(sol[1].toString()).toFixed(2) };
+                                obj = { x: i, y: parseFloat(sol[1].toString()).toFixed(2) };
 
 
-                            if (parseFloat(sol[1].toString()).toFixed(2) > 0) {
-                                arr1.push(obj);
-                            } else {
-                                arr.push(obj);
+                                if (parseFloat(sol[1].toString()).toFixed(2) > 0) {
+                                    arr1.push(obj);
+                                } else {
+                                    arr.push(obj);
+                                }
                             }
                         }
                     } else if (plotEquation.type === 1) {
                         eq = plotEquation.equation;
                         val = nerdamer(eq, { y: i.toFixed(2) });
                         parse = val + "=0";
+
+                        //removal of NaN i.e for 'e' exponential
+                        if (parse.indexOf("e") > -1) {
+                            continue;
+                        }
+
                         sol = nerdamer.solveEquations(parse, 'x');
                         if (sol.length < 2) {
                             obj = { y: i, x: parseFloat(sol.toString()).toFixed(2) };
                             arr.push(obj);
                         } else {
+                            //for trignometric equation
+                            if (isTrignometicEq) {
+                                obj = { y: i, x: parseFloat(sol[0].toString()).toFixed(2) };
+                                arr1.push(obj);
+                                obj = { y: i, x: parseFloat(sol[1].toString()).toFixed(2) };
+                                arr1.push(obj);
+                            } else {
+                                obj = { y: i, x: parseFloat(sol[0].toString()).toFixed(2) };
+                                if (parseFloat(sol[0].toString()).toFixed(2) > 0) {
+                                    arr1.push(obj);
+                                } else {
+                                    arr.push(obj);
+                                }
+                                //  arr.push(obj);
+
+                                obj = { y: i, x: parseFloat(sol[1].toString()).toFixed(2) };
+
+
+                                if (parseFloat(sol[1].toString()).toFixed(2) > 0) {
+                                    arr1.push(obj);
+                                } else {
+                                    arr.push(obj);
+                                }
+                            }
+                        }
+                    } else if (plotEquation.type === 3) {// for e
+                        eq = plotEquation.equation;
+                        obj = { x: i, y: parseFloat(plotEquation.equation) };
+                        arr1.push(obj);
+                    }else if (plotEquation.type === 4) { //for x
+                        eq = plotEquation.equation;
+                        sol = nerdamer.solveEquations(eq, 'x');
+
+                        if (sol.length < 2) {
+                            obj = { y: i, x: parseFloat(sol.toString()).toFixed(2) };
+                            arr.push(obj);
+                        } else {
+                            //setting double path
+                            isDoublePath = true;
+
+
                             obj = { y: i, x: parseFloat(sol[0].toString()).toFixed(2) };
 
                             if (parseFloat(sol[0].toString()).toFixed(2) > 0) {
@@ -259,30 +336,74 @@
                                 arr.push(obj);
                             }
                         }
-                    } else if (plotEquation.type === 3) {
+
+                        //arr1.push(obj);
+                    } else if (plotEquation.type === 5) { //for y
                         eq = plotEquation.equation;
-                        obj = { x: i, y: y = parseFloat(plotEquation.equation) };
-                        arr1.push(obj);
+                        sol = nerdamer.solveEquations(eq, 'y');
+
+                        if (sol.length < 2) {
+                            obj = { x: i, y: parseFloat(sol.toString()).toFixed(2) };
+                            arr.push(obj);
+                        } else {
+                            //setting double path
+                            isDoublePath = true;
+
+                            obj = { x: i, y: parseFloat(sol[0].toString()).toFixed(2) };
+
+                            if (parseFloat(sol[0].toString()).toFixed(2) > 0) {
+                                arr1.push(obj);
+                            } else {
+                                arr.push(obj);
+                            }
+                            //  arr.push(obj);
+
+                            obj = { x: i, y: parseFloat(sol[1].toString()).toFixed(2) };
+
+
+                            if (parseFloat(sol[1].toString()).toFixed(2) > 0) {
+                                arr1.push(obj);
+                            } else {
+                                arr.push(obj);
+                            }
+                        }
+
+                        //arr1.push(obj);
                     }
-                 
+
+
                 }
 
-                totalArr = arr1.concat(arr);
-
-                return totalArr;
-            }
+                if (isDoublePath) {//Setting the double array
+                    doubleArr[0][0] = arr1;
+                    doubleArr[0][1] = arr;
+                } else {//Setting things in single array
+                    if (isTrignometicEq) {
+                        totalArr = arr1;
+                    } else {
+                        totalArr = arr1.concat(arr.reverse());
+                    }
+                }
+                return  (isDoublePath) ? doubleArr:totalArr;
+            } 
 
 
             $("#drawGraph").on('click', function () {
                 svgCanvas.selectAll(".gLine").remove();
                 var lineData = plotGraph();
+
                 var lineFunc = d3.svg.line().x(function (d) {
                     return widthScale(d.x).toFixed(3);
                 }).y(function (d) {
                     return  heightScale(d.y);
                 }).interpolate('cardinal');
 
-                svgCanvas.append('svg:path').attr("class", "gLine").attr('d', lineFunc(lineData)).attr('stroke', 'blue').attr('stroke-width', 2).attr('fill', 'none');
+                if (isDoublePath) {
+                    svgCanvas.append('svg:path').attr("class", "gLine").attr('d', lineFunc(lineData[0][0])).attr('stroke', 'blue').attr('stroke-width', 2).attr('fill', 'none');
+                    svgCanvas.append('svg:path').attr("class", "gLine").attr('d', lineFunc(lineData[0][1])).attr('stroke', 'blue').attr('stroke-width', 2).attr('fill', 'none');
+                } else {
+                    svgCanvas.append('svg:path').attr("class", "gLine").attr('d', lineFunc(lineData)).attr('stroke', 'blue').attr('stroke-width', 2).attr('fill', 'none');
+                }
             });
         
         </script>
